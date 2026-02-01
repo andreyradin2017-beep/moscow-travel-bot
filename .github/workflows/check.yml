@@ -1,0 +1,43 @@
+name: Check Moscow Posts
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Каждые 30 минут
+  workflow_dispatch:        # Можно запустить вручную
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install telethon
+
+      - name: Restore last IDs
+        run: |
+          if [ -f last_ids.json ]; then
+            echo "IDs restored."
+          else
+            echo "{}" > last_ids.json
+          fi
+
+      - name: Run checker
+        env:
+          PHONE: ${{ secrets.PHONE }}
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+        run: python check_moscow.py
+
+      - name: Save last IDs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update last message IDs"
+          file_pattern: last_ids.json
