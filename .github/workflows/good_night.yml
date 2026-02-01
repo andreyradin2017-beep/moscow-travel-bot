@@ -2,11 +2,11 @@ name: Good Night Message
 
 on:
   schedule:
-    - cron: '0 19 * * *'  # 22:00 МСК = 19:00 UTC
-  workflow_dispatch:       # для ручного теста
+    - cron: '0 19 * * *'  # 22:00 МСК
+  workflow_dispatch:
 
 permissions:
-  contents: read  # писать не нужно — нет истории
+  contents: write  # ← нужно для сохранения истории
 
 jobs:
   send:
@@ -24,9 +24,23 @@ jobs:
       - name: Install dependencies
         run: pip install telethon
 
+      - name: Restore night phrase history
+        run: |
+          if [ -f used_night_phrases.json ]; then
+            echo "✅ История ночей загружена."
+          else
+            echo "[]" > used_night_phrases.json
+          fi
+
       - name: Send good night
         env:
           PHONE: ${{ secrets.PHONE }}
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
         run: python good_night.py
+
+      - name: Save night phrase history
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update used_night_phrases.json"
+          file_pattern: used_night_phrases.json
