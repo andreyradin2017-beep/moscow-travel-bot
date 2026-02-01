@@ -8,7 +8,7 @@ from playwright.async_api import async_playwright
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-CHAT_ID = "me"  # или ваш чат
+CHAT_ID = "me"  # временно — замените на "+79509156095", когда всё заработает
 
 URL = "https://snowball-income.com/public/portfolios/qzuscipxtn#transactions"
 STATE_FILE = "snowball_transactions.json"
@@ -17,13 +17,13 @@ async def get_transactions_with_playwright():
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
-        await page.goto(URL, wait_until="networkidle")  # ждём полной загрузки
+        await page.goto(URL, wait_until="networkidle")
         
-        # Ждём появления таблицы сделок (адаптируйте селектор!)
-        await page.wait_for_selector("#transactions table", timeout=15000)
+        # Ждём появления таблицы со сделками (по заголовку "Операция")
+        await page.wait_for_selector("table:has(th:text('Операция'))", timeout=20000)
         
-        # Извлекаем строки таблицы
-        rows = await page.query_selector_all("#transactions table tbody tr")
+        # Извлекаем все строки из tbody
+        rows = await page.query_selector_all("table:has(th:text('Операция')) tbody tr")
         transactions = []
         
         for row in rows:
@@ -33,13 +33,12 @@ async def get_transactions_with_playwright():
                 text = await cell.inner_text()
                 texts.append(text.strip())
             
-            if len(texts) >= 5:
-                # Пример: ["01.02.2026", "Покупка", "RU000A107JF9", "100", "98.5"]
-                date = texts[0]
-                operation = texts[1]
-                ticker = texts[2]
+            if len(texts) >= 8:
+                operation = texts[0]      # Операция
+                ticker = texts[1]         # Актив
+                date = texts[2]           # Дата
                 key = f"{date}|{ticker}|{operation}"
-                raw = " | ".join(texts)
+                raw = " | ".join(texts[:6])
                 transactions.append({"key": key, "raw": raw})
         
         await browser.close()
