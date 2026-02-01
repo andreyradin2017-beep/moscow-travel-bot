@@ -2,8 +2,11 @@ name: Check Moscow Posts
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Каждые 30 минут
-  workflow_dispatch:        # Можно запустить вручную
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # ← это даёт право делать коммиты
 
 jobs:
   check:
@@ -41,4 +44,3 @@ jobs:
         with:
           commit_message: "Update last message IDs"
           file_pattern: last_ids.json
-          token: ${{ secrets.GITHUB_TOKEN }}
