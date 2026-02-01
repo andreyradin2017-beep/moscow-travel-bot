@@ -41,3 +41,4 @@ jobs:
         with:
           commit_message: "Update last message IDs"
           file_pattern: last_ids.json
+          token: ${{ secrets.GITHUB_TOKEN }}
