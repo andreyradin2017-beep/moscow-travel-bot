@@ -10,7 +10,7 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 
 # Замените на username или номер вашей жены
-WIFE_USERNAME = "me"  # например: "+79991234567" или "anna_tg"
+WIFE_USERNAME = "+79509156095"  # например: "+79991234567" или "anna_tg"
 
 # Список милых фраз (минимум 6 штук, лучше 10+)
 PHRASES = [
@@ -81,4 +81,5 @@ if __name__ == "__main__":
     import asyncio
 
     asyncio.run(main())
+
 
