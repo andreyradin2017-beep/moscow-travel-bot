@@ -5,7 +5,7 @@ PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 CHANNELS = ["@nachemodanah", "@trvlclick", "@vandroukiru"]
-KEYWORDS = ["Москва", "из Москвы", "МСК", "московский"]
+KEYWORDS = ["Москва", "из Москвы"]
 
 # Используем публичный юзернейм группы (без @)
 GROUP_USERNAME = "to_road_mo"
