@@ -9,7 +9,7 @@ from telethon import TelegramClient
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-WIFE_USERNAME = "me"
+WIFE_USERNAME = "+79509156095"
 
 # Список милых фраз (без изменений)
 PHRASES = [
@@ -156,4 +156,5 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
+
 
