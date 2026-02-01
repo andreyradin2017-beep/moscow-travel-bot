@@ -24,7 +24,7 @@ async def get_transactions_with_playwright(portfolio_id):
         await page.goto(url, wait_until="networkidle")
         
         # Ждём таблицу со сделками (по заголовку "Операция")
-        await page.wait_for_selector("table:has(th:text('Операция'))", timeout=20000)
+        await page.wait_for_selector("tbody tr", timeout=30000)
         
         rows = await page.query_selector_all("table:has(th:text('Операция')) tbody tr")
         transactions = []
