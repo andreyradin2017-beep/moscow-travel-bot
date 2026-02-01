@@ -9,9 +9,11 @@ from telethon import TelegramClient
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-WIFE_USERNAME = "+79509156095"  # Убедитесь, что это номер вашей жены
 
-# Список милых фраз
+# Укажите номер вашей жены (международный формат)
+WIFE_USERNAME = "me"
+
+# Список милых фраз с эмодзи
 PHRASES = [
     "💖 Ты делаешь мой мир ярче!",
     "🌸 Пусть твой день будет таким же прекрасным, как ты!",
@@ -49,43 +51,38 @@ def save_used_phrases(phrases):
         json.dump(phrases[-HISTORY_SIZE:], f, ensure_ascii=False)
 
 def get_weather():
-    """Получает погоду в Туле на сегодня"""
+    """Возвращает строку: 'P.S. На улице +5°C и дождь — не забудь зонт! ☔'"""
     try:
-        # Координаты Тулы
-        lat, lon = 54.1931, 37.6178
+        lat, lon = 54.1931, 37.6178  # Координаты Тулы
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&timezone=Europe%2FMoscow"
-        
         response = requests.get(url, timeout=10)
         data = response.json()
         
         temp = int(data["current_weather"]["temperature"])
         weather_code = data["current_weather"]["weathercode"]
         
-        # Расшифровка погоды (упрощённая)
-        weather_map = {
-            0: "ясно",
-            1: "преимущественно ясно",
-            2: "переменная облачность",
-            3: "облачно",
-            45: "туман",
-            48: "изморозь",
-            51: "слабый дождь",
-            53: "дождь",
-            55: "сильный дождь",
-            61: "слабый дождь",
-            63: "дождь",
-            65: "сильный дождь",
-            71: "слабый снег",
-            73: "снег",
-            75: "сильный снег",
-            95: "гроза",
-        }
-        desc = weather_map.get(weather_code, "погода")
-        
-        return f"🌦️ **Тула**: {temp}°C, {desc}"
+        if weather_code in [51, 53, 55, 61, 63, 65]:  # дождь
+            desc, advice, emoji = "дождь", "не забудь зонт!", "☔"
+        elif weather_code in [71, 73, 75]:  # снег
+            desc, advice, emoji = "снег", "одевайся потеплее!", "❄️"
+        elif weather_code == 0:  # ясно
+            desc, advice, emoji = "ясно", "отличный день для прогулки!", "☀️"
+        elif weather_code in [1, 2]:  # переменная облачность
+            desc, advice, emoji = "облачно", "хороший день для кофе!", "⛅"
+        elif weather_code == 3:  # пасмурно
+            desc, advice, emoji = "пасмурно", "возьми что-то тёплое!", "☁️"
+        elif weather_code in [45, 48]:  # туман
+            desc, advice, emoji = "туман", "будь осторожна за рулём!", "🌫️"
+        elif weather_code == 95:  # гроза
+            desc, advice, emoji = "гроза", "лучше остаться дома!", "⛈️"
+        else:
+            desc, advice, emoji = "погода", "хорошего дня!", "🌤️"
+
+        return f"P.S. На улице {temp}°C и {desc} — {advice} {emoji}"
+    
     except Exception as e:
         print(f"Ошибка погоды: {e}")
-        return "🌦️ Погода: не удалось загрузить"
+        return "P.S. Не смог узнать погоду, но всё равно оденься по погоде! 🧥"
 
 async def main():
     client = TelegramClient('session', API_ID, API_HASH)
@@ -101,15 +98,13 @@ async def main():
     used.append(phrase)
     save_used_phrases(used)
 
-    weather = get_weather()
-    today = datetime.now().strftime("%d %B")
-
-    message = f"Доброе утро, красавица!\n\n{phrase}\n\n{weather}\n📅 Сегодня, {today}"
+    weather_line = get_weather()
+    message = f"Доброе утро, красавица!\n\n{phrase}\n\n{weather_line}"
 
     print(f"🌅 Отправляю сообщение жене: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     
     try:
-        await client.send_message(WIFE_USERNAME, message, parse_mode='md')
+        await client.send_message(WIFE_USERNAME, message)
         print("✅ Сообщение отправлено!")
     except Exception as e:
         print(f"❌ Ошибка: {e}")
