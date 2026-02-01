@@ -11,7 +11,7 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 
 # Укажите номер вашей жены (международный формат)
-WIFE_USERNAME = "me"
+WIFE_USERNAME = "+79509156095"
 
 # Список милых фраз с эмодзи
 PHRASES = [
@@ -114,3 +114,4 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
+
