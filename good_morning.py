@@ -9,11 +9,9 @@ from telethon import TelegramClient
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-
-# Укажите номер вашей жены (международный формат)
 WIFE_USERNAME = "+79509156095"
 
-# Список милых фраз с эмодзи
+# Список милых фраз (без изменений)
 PHRASES = [
     "💖 Ты делаешь мой мир ярче!",
     "🌸 Пусть твой день будет таким же прекрасным, как ты!",
@@ -37,6 +35,15 @@ PHRASES = [
     "🌷 С добрым утром, моя любовь!"
 ]
 
+# Случайные приветствия
+GREETINGS = [
+    "Доброе утро, красавица!",
+    "Доброе утро, моя звезда! ✨",
+    "Доброе утро, солнышко! ☀️",
+    "Доброе утро, любимая! 💕",
+    "Доброе утро, моя радость! 🌸"
+]
+
 HISTORY_FILE = "used_phrases.json"
 HISTORY_SIZE = 5
 
@@ -50,33 +57,67 @@ def save_used_phrases(phrases):
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(phrases[-HISTORY_SIZE:], f, ensure_ascii=False)
 
+def get_season():
+    """Определяет сезон по месяцу"""
+    month = datetime.now().month
+    if month in [12, 1, 2]:
+        return "winter"
+    elif month in [3, 4, 5]:
+        return "spring"
+    elif month in [6, 7, 8]:
+        return "summer"
+    else:
+        return "autumn"
+
 def get_weather():
-    """Возвращает строку: 'P.S. На улице +5°C и дождь — не забудь зонт! ☔'"""
+    """Возвращает P.S. с погодой и сезонным советом"""
     try:
-        lat, lon = 54.1931, 37.6178  # Координаты Тулы
+        lat, lon = 54.1931, 37.6178
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true&timezone=Europe%2FMoscow"
         response = requests.get(url, timeout=10)
         data = response.json()
         
         temp = int(data["current_weather"]["temperature"])
         weather_code = data["current_weather"]["weathercode"]
-        
-        if weather_code in [51, 53, 55, 61, 63, 65]:  # дождь
-            desc, advice, emoji = "дождь", "не забудь зонт!", "☔"
-        elif weather_code in [71, 73, 75]:  # снег
-            desc, advice, emoji = "снег", "одевайся потеплее!", "❄️"
-        elif weather_code == 0:  # ясно
-            desc, advice, emoji = "ясно", "отличный день для прогулки!", "☀️"
-        elif weather_code in [1, 2]:  # переменная облачность
-            desc, advice, emoji = "облачно", "хороший день для кофе!", "⛅"
-        elif weather_code == 3:  # пасмурно
-            desc, advice, emoji = "пасмурно", "возьми что-то тёплое!", "☁️"
-        elif weather_code in [45, 48]:  # туман
-            desc, advice, emoji = "туман", "будь осторожна за рулём!", "🌫️"
-        elif weather_code == 95:  # гроза
-            desc, advice, emoji = "гроза", "лучше остаться дома!", "⛈️"
+        season = get_season()
+
+        # Базовые параметры
+        if weather_code in [51, 53, 55, 61, 63, 65]:
+            desc, emoji = "дождь", "☔"
+            if season == "winter":
+                advice = "не забудь зонт и тёплые носки!"
+            elif season == "summer":
+                advice = "зонт и лёгкую куртку!"
+            else:
+                advice = "не забудь зонт!"
+        elif weather_code in [71, 73, 75]:
+            desc, emoji = "снег", "❄️"
+            advice = "шапку, перчатки и тёплую обувь!"
+        elif weather_code == 0:
+            desc, emoji = "ясно", "☀️"
+            if season == "summer":
+                advice = "солнцезащитные очки и крем!"
+            elif season == "winter":
+                advice = "не забудь про защиту от мороза!"
+            else:
+                advice = "отличный день для прогулки!"
+        elif weather_code in [1, 2, 3]:
+            desc, emoji = "облачно", "⛅"
+            if season == "autumn":
+                advice = "возьми что-то тёплое и плед!"
+            elif season == "spring":
+                advice = "берегись весенней хандры — ты прекрасна!"
+            else:
+                advice = "хороший день для кофе!"
+        elif weather_code in [45, 48]:
+            desc, emoji = "туман", "🌫️"
+            advice = "будь осторожна за рулём!"
+        elif weather_code == 95:
+            desc, emoji = "гроза", "⛈️"
+            advice = "лучше остаться дома!"
         else:
-            desc, advice, emoji = "погода", "хорошего дня!", "🌤️"
+            desc, emoji = "погода", "🌤️"
+            advice = "хорошего дня!"
 
         return f"P.S. На улице {temp}°C и {desc} — {advice} {emoji}"
     
@@ -98,8 +139,9 @@ async def main():
     used.append(phrase)
     save_used_phrases(used)
 
+    greeting = random.choice(GREETINGS)
     weather_line = get_weather()
-    message = f"Доброе утро, красавица!\n\n{phrase}\n\n{weather_line}"
+    message = f"{greeting}\n\n{phrase}\n\n{weather_line}"
 
     print(f"🌅 Отправляю сообщение жене: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     
@@ -114,4 +156,3 @@ async def main():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
-
