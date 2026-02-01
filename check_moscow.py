@@ -17,7 +17,7 @@ async def main():
     for channel in CHANNELS:
         print(f"🔍 Проверяю {channel}...")
         try:
-            messages = await client.get_messages(channel, limit=20)
+            messages = await client.get_messages(channel, limit=10)
             for msg in messages:
                 if msg.text and any(kw.lower() in msg.text.lower() for kw in KEYWORDS):
                     print(f"📩 Отправляю в группу: {msg.text[:100]}...")
