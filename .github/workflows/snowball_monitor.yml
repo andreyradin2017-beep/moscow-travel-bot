@@ -2,11 +2,11 @@ name: Snowball Transactions Monitor
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Проверка каждые 30 минут
-  workflow_dispatch:         # Возможность запустить вручную
+    - cron: '*/30 * * * *'  # каждые 30 минут
+  workflow_dispatch:         # можно запустить вручную
 
 permissions:
-  contents: write  # Нужно для сохранения истории сделок
+  contents: write
 
 jobs:
   monitor:
