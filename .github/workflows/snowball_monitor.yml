@@ -3,7 +3,7 @@ name: Snowball Transactions Monitor
 on:
   schedule:
     - cron: '*/30 * * * *'  # каждые 30 минут
-  workflow_dispatch:         # можно запустить вручную
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -45,10 +45,15 @@ jobs:
 
       - name: Restore transaction history
         run: |
-          if [ -f snowball_transactions.json ]; then
-            echo "✅ История сделок загружена."
+          if [ -f snowball_qzuscipxtn_transactions.json ]; then
+            echo "✅ История qzuscipxtn загружена."
           else
-            echo "[]" > snowball_transactions.json
+            echo "[]" > snowball_qzuscipxtn_transactions.json
+          fi
+          if [ -f snowball_ukbrjaxjfg_transactions.json ]; then
+            echo "✅ История ukbrjaxjfg загружена."
+          else
+            echo "[]" > snowball_ukbrjaxjfg_transactions.json
           fi
 
       - name: Check for new transactions
@@ -62,4 +67,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update snowball transaction history"
-          file_pattern: snowball_transactions.json
+          file_pattern: "snowball_*.json"
