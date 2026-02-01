@@ -18,7 +18,7 @@ async def main():
             for msg in messages:
                 if msg.text and any(kw.lower() in msg.text.lower() for kw in KEYWORDS):
                     print(f"📩 Найдено в {channel}: {msg.text[:100]}...")
-                    await client.forward_messages('-5219638206', msg)
+                    await client.forward_messages('-1005219638206', msg)
         except Exception as e:
             print(f"❌ Ошибка в {channel}: {e}")
     
