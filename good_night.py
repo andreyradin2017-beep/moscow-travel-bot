@@ -7,7 +7,7 @@ from datetime import datetime
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-WIFE_USERNAME = "me"
+WIFE_USERNAME = "+79509156095"
 
 NIGHT_PHRASES = [
     "Спокойной ночи, моя любовь. Завтра будет ещё один день с тобой 🌙",
