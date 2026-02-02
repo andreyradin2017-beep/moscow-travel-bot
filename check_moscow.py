@@ -6,9 +6,21 @@ PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 CHANNELS = ["@nachemodanah", "@trvlclick", "@vandroukiru"]
-KEYWORDS = ["Москва", "из Москвы"]
 GROUP_USERNAME = "to_road_mo"
 HISTORY_FILE = "sent_messages.json"
+
+def matches_moscow(text):
+    """Проверяет, содержит ли текст упоминание Москвы в любой форме"""
+    if not text:
+        return False
+    t = text.lower()
+    # Ловим: Москва, Москвой, из Москвы, MSK, Moskva и т.д.
+    return any(word in t for word in [
+        "москв",   # Москва, Москвы, Москвой...
+        "msk",     # MSK, msk
+        "moscow",  # англоязычные варианты
+        "мск"      # сокращение
+    ])
 
 def load_sent_ids():
     if os.path.exists(HISTORY_FILE):
@@ -33,9 +45,7 @@ async def main():
         try:
             messages = await client.get_messages(channel, limit=10)
             for msg in messages:
-                if not msg.text:
-                    continue
-                if any(kw.lower() in msg.text.lower() for kw in KEYWORDS):
+                if matches_moscow(msg.text):
                     composite_id = f"{channel}_{msg.id}"
                     if composite_id in sent_ids:
                         print(f"⏭️ Уже отправляли (ID: {composite_id})")
@@ -45,8 +55,6 @@ async def main():
                     new_ids.add(composite_id)
         except Exception as e:
             print(f"❌ Ошибка в {channel}: {e}")
-            # Опционально: отправить ошибку в группу
-            # await client.send_message(GROUP_USERNAME, f"[❗ Ошибка] {channel}: {e}")
 
     sent_ids.update(new_ids)
     save_sent_ids(sent_ids)
