@@ -2,11 +2,11 @@ name: Check Moscow Posts
 
 on:
   schedule:
-        - cron: '*/30 5-19 * * *'  # 8:00–22:30 МСК
+    - cron: '*/30 5-19 * * *'  # Пн-Вс, 8:00–22:30 МСК (UTC+3 → 5-19 UTC)
   workflow_dispatch:
 
 permissions:
-  contents: read  # теперь не нужно писать
+  contents: write  # ← важно: нужно для сохранения sent_messages.json
 
 jobs:
   check:
@@ -24,9 +24,23 @@ jobs:
       - name: Install dependencies
         run: pip install telethon
 
+      - name: Restore sent messages history
+        run: |
+          if [ -f sent_messages.json ]; then
+            echo "✅ История отправленных сообщений загружена."
+          else
+            echo "[]" > sent_messages.json
+          fi
+
       - name: Run checker
         env:
           PHONE: ${{ secrets.PHONE }}
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
         run: python check_moscow.py
+
+      - name: Save sent messages history
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update sent_messages.json"
+          file_pattern: sent_messages.json
