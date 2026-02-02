@@ -45,16 +45,9 @@ jobs:
 
       - name: Restore transaction history
         run: |
-          if [ -f snowball_qzuscipxtn_transactions.json ]; then
-            echo "✅ История qzuscipxtn загружена."
-          else
-            echo "[]" > snowball_qzuscipxtn_transactions.json
-          fi
-          if [ -f snowball_ukbrjaxjfg_transactions.json ]; then
-            echo "✅ История ukbrjaxjfg загружена."
-          else
-            echo "[]" > snowball_ukbrjaxjfg_transactions.json
-          fi
+          for f in snowball_*.json; do
+            [ -f "$f" ] && echo "✅ $f загружен." || echo "[]" > "$f"
+          done
 
       - name: Check for new transactions
         env:
