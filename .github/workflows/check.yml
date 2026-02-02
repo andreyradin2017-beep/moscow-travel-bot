@@ -2,11 +2,11 @@ name: Check Moscow Posts
 
 on:
   schedule:
-    - cron: '*/30 5-19 * * *'  # Пн-Вс, 8:00–22:30 МСК (UTC+3 → 5-19 UTC)
+    - cron: '*/30 5-19 * * *'  # 8:00–22:30 МСК
   workflow_dispatch:
 
 permissions:
-  contents: write  # ← важно: нужно для сохранения sent_messages.json
+  contents: write
 
 jobs:
   check:
@@ -27,7 +27,7 @@ jobs:
       - name: Restore sent messages history
         run: |
           if [ -f sent_messages.json ]; then
-            echo "✅ История отправленных сообщений загружена."
+            echo "✅ История загружена."
           else
             echo "[]" > sent_messages.json
           fi
