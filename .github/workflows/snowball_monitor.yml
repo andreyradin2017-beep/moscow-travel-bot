@@ -2,7 +2,7 @@ name: Snowball Transactions Monitor
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # каждые 30 минут
+    - cron: '*/30 5-19 * * 1-5'  # Пн–Пт, 8:00–22:30 МСК
   workflow_dispatch:
 
 permissions:
