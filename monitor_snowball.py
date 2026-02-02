@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-CHAT_ID = "me"  # ← пушим сообщение 
+CHAT_ID = "me"
 
 PORTFOLIOS = {
     "Купонный Концентрат 💸": "qzuscipxtn",
@@ -22,13 +22,19 @@ async def get_transactions_with_playwright(portfolio_id):
         page = await browser.new_page()
         await page.goto(url, wait_until="networkidle")
         
-        # Ждём появления таблицы или сообщения "пусто"
-        await page.wait_for_selector("table, text='Здесь пока что пусто'", timeout=30000)
-        
-        # Проверяем, пуста ли таблица
-        empty_notice = await page.query_selector("text='Здесь пока что пусто'")
-        if empty_notice:
+        # Проверяем наличие сообщения "Здесь пока что пусто"
+        empty_elements = await page.query_selector_all("text='Здесь пока что пусто'")
+        if empty_elements:
             print("📭 Таблица пуста")
+            await browser.close()
+            return []
+
+        # Ждём появления таблицы со сделками
+        try:
+            await page.wait_for_selector("table:has(th:text('Операция'))", timeout=20000)
+        except Exception:
+            print("⚠️ Таблица сделок не загрузилась вовремя")
+            await browser.close()
             return []
 
         rows = await page.query_selector_all("table:has(th:text('Операция')) tbody tr")
@@ -62,7 +68,7 @@ def load_saved_state(portfolio_id):
 def save_state(portfolio_id, keys):
     filename = f"snowball_{portfolio_id}_transactions.json"
     with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(list(keys)[-100:], f)  # последние 100
+        json.dump(list(keys)[-100:], f)  # сохраняем последние 100 записей
 
 async def main():
     print(f"🕒 Запуск: {datetime.now(timezone.utc).isoformat()}")
