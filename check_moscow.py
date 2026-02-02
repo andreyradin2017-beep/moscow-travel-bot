@@ -35,7 +35,10 @@ async def main():
                 if not msg.text:
                     continue
                 if any(kw.lower() in msg.text.lower() for kw in KEYWORDS):
-                    if msg.id in sent_ids:
+                    composite_id = f"{channel}_{msg.id}"
+if composite_id in sent_ids:
+    ...
+    new_ids.add(composite_id)
                         print(f"⏭️ Уже отправляли (ID: {msg.id})")
                         continue
                     print(f"📩 Отправляю в группу: {msg.text[:100]}...")
