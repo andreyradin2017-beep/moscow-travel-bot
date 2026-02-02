@@ -8,7 +8,7 @@ API_HASH = os.getenv("API_HASH")
 CHANNELS = ["@nachemodanah", "@trvlclick", "@vandroukiru"]
 KEYWORDS = ["Москва", "из Москвы"]
 GROUP_USERNAME = "to_road_mo"
-HISTORY_FILE = "sent_messages.json"  # файл для хранения истории
+HISTORY_FILE = "sent_messages.json"
 
 def load_sent_ids():
     if os.path.exists(HISTORY_FILE):
@@ -17,8 +17,9 @@ def load_sent_ids():
     return set()
 
 def save_sent_ids(ids):
+    # Ограничиваем историю последними 200 записями
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(list(ids), f)
+        json.dump(list(ids)[-200:], f)
 
 async def main():
     client = TelegramClient('session', API_ID, API_HASH)
@@ -36,21 +37,19 @@ async def main():
                     continue
                 if any(kw.lower() in msg.text.lower() for kw in KEYWORDS):
                     composite_id = f"{channel}_{msg.id}"
-if composite_id in sent_ids:
-    ...
-    new_ids.add(composite_id)
-                        print(f"⏭️ Уже отправляли (ID: {msg.id})")
+                    if composite_id in sent_ids:
+                        print(f"⏭️ Уже отправляли (ID: {composite_id})")
                         continue
                     print(f"📩 Отправляю в группу: {msg.text[:100]}...")
                     await client.send_message(GROUP_USERNAME, msg.text)
-                    new_ids.add(msg.id)
+                    new_ids.add(composite_id)
         except Exception as e:
             print(f"❌ Ошибка в {channel}: {e}")
+            # Опционально: отправить ошибку в группу
+            # await client.send_message(GROUP_USERNAME, f"[❗ Ошибка] {channel}: {e}")
 
-    # Обновляем историю
     sent_ids.update(new_ids)
     save_sent_ids(sent_ids)
-
     await client.disconnect()
 
 if __name__ == "__main__":
