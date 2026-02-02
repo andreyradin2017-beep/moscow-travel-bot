@@ -3,14 +3,13 @@ import json
 import asyncio
 from telethon import TelegramClient
 from playwright.async_api import async_playwright
+from datetime import datetime, timezone
 
-# === Настройки ===
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-CHAT_ID = "me"  # временно — замените на "+79509156095", когда всё заработает
+CHAT_ID = "+79509156095"  # ← замените на нужный
 
-# Список портфелей для мониторинга: { "название": "ID из URL" }
 PORTFOLIOS = {
     "Купонный Концентрат 💸": "qzuscipxtn",
     "Другой портфель": "ukbrjaxjfg"
@@ -23,9 +22,15 @@ async def get_transactions_with_playwright(portfolio_id):
         page = await browser.new_page()
         await page.goto(url, wait_until="networkidle")
         
-        # Ждём таблицу со сделками (по заголовку "Операция")
-        await page.wait_for_selector("tbody tr", timeout=30000)
+        # Ждём появления таблицы или сообщения "пусто"
+        await page.wait_for_selector("table, text='Здесь пока что пусто'", timeout=30000)
         
+        # Проверяем, пуста ли таблица
+        empty_notice = await page.query_selector("text='Здесь пока что пусто'")
+        if empty_notice:
+            print("📭 Таблица пуста")
+            return []
+
         rows = await page.query_selector_all("table:has(th:text('Операция')) tbody tr")
         transactions = []
         
@@ -57,9 +62,10 @@ def load_saved_state(portfolio_id):
 def save_state(portfolio_id, keys):
     filename = f"snowball_{portfolio_id}_transactions.json"
     with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(list(keys), f)
+        json.dump(list(keys)[-100:], f)  # последние 100
 
 async def main():
+    print(f"🕒 Запуск: {datetime.now(timezone.utc).isoformat()}")
     client = TelegramClient('session', API_ID, API_HASH)
     await client.start(phone=PHONE)
 
