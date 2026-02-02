@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-CHAT_ID = "+79509156095"  # ← замените на нужный
+CHAT_ID = "me"  # ← пушим сообщение 
 
 PORTFOLIOS = {
     "Купонный Концентрат 💸": "qzuscipxtn",
