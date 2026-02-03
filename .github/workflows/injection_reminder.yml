@@ -1,0 +1,47 @@
+name: Injection Reminder
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # каждый день в 6:00 МСК = 3:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install telethon
+
+      - name: Restore last injection date
+        run: |
+          if [ -f last_injection.json ]; then
+            echo "✅ Дата последнего укола загружена."
+          else
+            echo '{"date": "2026-01-29T00:00:00"}' > last_injection.json
+          fi
+
+      - name: Check and send reminder
+        env:
+          PHONE: ${{ secrets.PHONE }}
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+        run: python injection_reminder.py
+
+      - name: Save last injection date
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update last_injection.json"
+          file_pattern: last_injection.json
+          push_options: "--force"
