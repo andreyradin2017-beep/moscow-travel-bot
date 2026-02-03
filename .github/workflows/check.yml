@@ -44,3 +44,4 @@ jobs:
         with:
           commit_message: "Update sent_messages.json"
           file_pattern: sent_messages.json
+          push_options: "--force"
