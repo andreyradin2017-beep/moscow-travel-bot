@@ -42,7 +42,7 @@ async def main():
     for channel in CHANNELS:
         print(f"🔍 Проверяю {channel}...")
         try:
-            messages = await client.get_messages(channel, limit=10)
+            messages = await client.get_messages(channel, limit=20)
             for msg in messages:
                 if matches_departure_from_moscow(msg.text):
                     composite_id = f"{channel}_{msg.id}"
