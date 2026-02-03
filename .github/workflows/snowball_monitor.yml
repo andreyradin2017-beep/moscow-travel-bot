@@ -61,3 +61,4 @@ jobs:
         with:
           commit_message: "Update snowball transaction history"
           file_pattern: "snowball_*.json"
+          push_options: "--force"
