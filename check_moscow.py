@@ -2,8 +2,12 @@ import os
 import json
 import re
 from telethon import TelegramClient
-from telethon.errors import InviteHashInvalidError, UserAlreadyParticipantError, FloodWaitError, ChatAdminRequiredError, UserNotParticipantError
-from datetime import datetime, timedelta
+from telethon.tl.functions.messages import ImportChatInviteRequest
+from telethon.errors import (
+    InviteHashInvalidError, UserAlreadyParticipantError, FloodWaitError,
+    ChatAdminRequiredError, UserNotParticipantError, BadRequestError
+)
+from datetime import datetime, timedelta, timezone
 
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
@@ -50,7 +54,15 @@ def get_invite_hash(link):
 async def join_and_get_private_channel(client, invite_link):
     try:
         hash_part = get_invite_hash(invite_link)
-        entity = await client.join_chat(hash_part)
+        updates = await client(ImportChatInviteRequest(hash_part))
+        entity = None
+        if hasattr(updates, 'chats') and updates.chats:
+            entity = updates.chats[0]
+        elif hasattr(updates, 'users') and updates.users:
+            # Если это приватная группа с одним пользователем (редко)
+            pass
+        if not entity:
+            entity = await client.get_entity(invite_link)
         print(f"✅ Присоединились к приватному чату: {entity.title}")
         return entity
     except UserAlreadyParticipantError:
@@ -63,6 +75,9 @@ async def join_and_get_private_channel(client, invite_link):
     except FloodWaitError as e:
         print(f"⏰ Ожидание {e.seconds} секунд из-за ограничения API.")
         return "FLOOD_WAIT"
+    except BadRequestError as e:
+        print(f"❌ Ошибка запроса при присоединении к чату ({invite_link}): {e}")
+        return None
     except Exception as e:
         print(f"❌ Ошибка при присоединении к приватному чату ({invite_link}): {e}")
         return None
@@ -84,7 +99,7 @@ async def main():
                 continue
 
             for msg in messages:
-                if not msg.date or msg.date < datetime.now() - timedelta(days=MAX_POST_AGE_DAYS):
+                if not msg.date or msg.date.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc) - timedelta(days=MAX_POST_AGE_DAYS):
                     continue
 
                 original_text = msg.message if hasattr(msg, 'message') else getattr(msg, 'text', '')
@@ -118,7 +133,7 @@ async def main():
                 continue
 
             for msg in messages:
-                if not msg.date or msg.date < datetime.now() - timedelta(days=MAX_POST_AGE_DAYS):
+                if not msg.date or msg.date.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc) - timedelta(days=MAX_POST_AGE_DAYS):
                     continue
 
                 original_text = msg.message if hasattr(msg, 'message') else getattr(msg, 'text', '')
