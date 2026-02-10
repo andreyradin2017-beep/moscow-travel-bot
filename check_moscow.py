@@ -9,12 +9,14 @@ from telethon.errors import (
 )
 from datetime import datetime, timedelta, timezone
 
-PHONE = os.getenv("PHONE")
+PHONE = os.getenv("PHONE")  # Ваш номер телефона (например, "79123456789")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
+MY_PHONE_CODE = os.getenv("MY_PHONE_CODE")  # Код из SMS (6 цифр)
+
 CHANNELS = ["@nachemodanah", "@trvlclick", "@vandroukiru"]
 
-# 🔑 ССЫЛКИ БЕЗ ПРОБЕЛОВ! Если ссылки просрочены — запросите новые у администраторов
+# 🔑 ССЫЛКИ БЕЗ ПРОБЕЛОВ! Проверьте визуально в репозитории
 PRIVATE_INVITE_LINKS = [
     "https://t.me/+b9eRLxlVIls4MzQy",
     "https://t.me/+GWM5t4jm-CZjOGZi"
@@ -45,9 +47,17 @@ def save_sent_ids(ids):
         json.dump(list(ids), f)
 
 async def main():
-    # Используем ЧИСТУЮ сессию — файл будет создан автоматически при авторизации
+    # Функция для автоматического ввода кода из секрета
+    def code_callback():
+        if MY_PHONE_CODE:
+            print(f"✅ Использую код из секрета MY_PHONE_CODE: {MY_PHONE_CODE}")
+            return MY_PHONE_CODE
+        else:
+            print("⚠️ Секрет MY_PHONE_CODE не задан. Требуется ручной ввод кода.")
+            return input("Введите код из SMS: ")
+
     client = TelegramClient('session', API_ID, API_HASH)
-    await client.start(phone=PHONE)
+    await client.start(phone=PHONE, code_callback=code_callback)
 
     sent_ids = load_sent_ids()
     new_ids = set()
@@ -71,36 +81,45 @@ async def main():
         except Exception as e:
             print(f"❌ {channel}: {e}")
 
-    # Приватные чаты
+    # Приватные чаты — КРИТИЧЕСКИ ВАЖНО: выводим ссылки в квадратных скобках для видимости пробелов
     print("\n" + "="*50)
-    print("🔐 Приватные чаты")
+    print("🔐 Приватные чаты (проверка на пробелы)")
     print("="*50)
     
     for link in PRIVATE_INVITE_LINKS:
+        # Визуальная проверка пробелов — обрамляем скобками
+        print(f"\n🔍 Исходная ссылка: [{link}]")
         link_clean = link.strip()
-        hash_part = link_clean.split('+')[-1].split('?')[0].strip()
-        print(f"\n🔗 {link_clean}")
-        print(f"   Хеш: '{hash_part}'")
+        print(f"   После .strip(): [{link_clean}]")
         
+        # Извлекаем хеш БЕЗ пробелов
+        try:
+            hash_part = link_clean.split('+')[-1].split('?')[0].split('#')[0].strip()
+            print(f"   Хеш приглашения: [{hash_part}]")
+        except Exception as e:
+            print(f"❌ Ошибка извлечения хеша: {e}")
+            continue
+
         # Пробуем получить чат напрямую (если уже участник)
         try:
             entity = await client.get_entity(link_clean)
             print(f"✅ Уже в чате: {getattr(entity, 'title', entity.id)}")
-        except:
-            # Если не участник — присоединяемся через инвайт
+        except Exception as e:
+            print(f"   ℹ️ Не найден напрямую ({type(e).__name__}), пробую присоединиться...")
+            # Присоединяемся через инвайт
             try:
                 await client(ImportChatInviteRequest(hash_part))
                 entity = await client.get_entity(link_clean)
                 print(f"✅ Присоединились: {getattr(entity, 'title', entity.id)}")
             except InviteHashExpiredError:
-                print(f"❌ ССЫЛКА ПРОСРОЧЕНА!")
-                print(f"💡 Запросите НОВУЮ ссылку у администратора чата")
+                print(f"❌❌ ССЫЛКА ПРОСРОЧЕНА! ❌❌")
+                print(f"💡 Решение: запросите НОВУЮ ссылку у администратора чата")
                 continue
             except InviteHashInvalidError:
-                print(f"❌ Неверный хеш ссылки")
+                print(f"❌ Неверный формат хеша (возможно, пробелы в ссылке)")
                 continue
-            except Exception as e:
-                print(f"❌ Ошибка присоединения: {e}")
+            except Exception as ex:
+                print(f"❌ Ошибка присоединения: {type(ex).__name__}: {ex}")
                 continue
 
         # Парсим сообщения
@@ -114,7 +133,7 @@ async def main():
                     cid = f"{entity.id}_{msg.id}"
                     if cid in sent_ids:
                         continue
-                    print(f"✅ [{getattr(entity, 'title', entity.id)[:15])}] {text[:60]}")
+                    print(f"✅ [{getattr(entity, 'title', str(entity.id))[:15]}] {text[:60]}")
                     await client.send_message(GROUP_USERNAME, text)
                     new_ids.add(cid)
         except Exception as e:
