@@ -4,8 +4,8 @@ import re
 from telethon import TelegramClient
 from telethon.tl.functions.messages import ImportChatInviteRequest
 from telethon.errors import (
-    InviteHashInvalidError, UserAlreadyParticipantError, FloodWaitError,
-    ChatAdminRequiredError, UserNotParticipantError, InviteHashExpiredError
+    InviteHashExpiredError, InviteHashInvalidError, UserAlreadyParticipantError,
+    FloodWaitError, ChatAdminRequiredError
 )
 from datetime import datetime, timedelta, timezone
 
@@ -14,7 +14,7 @@ API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 CHANNELS = ["@nachemodanah", "@trvlclick", "@vandroukiru"]
 
-# ⚠️ КРИТИЧЕСКИ ВАЖНО: ссылки БЕЗ пробелов в конце!
+# 🔑 ССЫЛКИ БЕЗ ПРОБЕЛОВ! Если ссылки просрочены — запросите новые у администраторов
 PRIVATE_INVITE_LINKS = [
     "https://t.me/+b9eRLxlVIls4MzQy",
     "https://t.me/+GWM5t4jm-CZjOGZi"
@@ -31,8 +31,6 @@ def matches_departure_from_moscow(text):
     patterns = [
         r'\b(?:москва|мск|msk)\s*[-—>→:]\s*\w',
         r'\bиз\s+(?:москвы?|мск|msk)\b',
-        r'\b(?:москва|мск|msk)\s+to\s+\w',
-        r'\b(?:москва|мск|msk)\s+[а-яa-z]',
     ]
     return any(re.search(pattern, t) for pattern in patterns)
 
@@ -47,15 +45,16 @@ def save_sent_ids(ids):
         json.dump(list(ids), f)
 
 async def main():
+    # Используем ЧИСТУЮ сессию — файл будет создан автоматически при авторизации
     client = TelegramClient('session', API_ID, API_HASH)
     await client.start(phone=PHONE)
 
     sent_ids = load_sent_ids()
     new_ids = set()
 
-    # Обработка публичных каналов
+    # Публичные каналы
     for channel in CHANNELS:
-        print(f"\n🔍 Публичный канал: {channel}")
+        print(f"\n📡 {channel}")
         try:
             messages = await client.get_messages(channel, limit=20)
             for msg in messages:
@@ -65,43 +64,43 @@ async def main():
                 if matches_departure_from_moscow(text):
                     cid = f"{channel}_{msg.id}"
                     if cid in sent_ids:
-                        print(f"⏭️ Уже отправлено: {cid}")
                         continue
-                    print(f"✅ Отправляю: {text[:80]}...")
+                    print(f"✅ {text[:70]}")
                     await client.send_message(GROUP_USERNAME, text)
                     new_ids.add(cid)
         except Exception as e:
-            print(f"❌ Ошибка {channel}: {e}")
+            print(f"❌ {channel}: {e}")
 
-    # Обработка приватных чатов — БЕЗ импорта инвайта, если уже участник
-    print("\n" + "="*60)
-    print("ПРИВАТНЫЕ ЧАТЫ (работаем через прямой доступ)")
-    print("="*60)
+    # Приватные чаты
+    print("\n" + "="*50)
+    print("🔐 Приватные чаты")
+    print("="*50)
     
     for link in PRIVATE_INVITE_LINKS:
         link_clean = link.strip()
-        print(f"\n🔗 Чат: {link_clean}")
+        hash_part = link_clean.split('+')[-1].split('?')[0].strip()
+        print(f"\n🔗 {link_clean}")
+        print(f"   Хеш: '{hash_part}'")
         
-        # Пробуем получить чат напрямую — БЕЗ использования инвайта!
+        # Пробуем получить чат напрямую (если уже участник)
         try:
             entity = await client.get_entity(link_clean)
-            title = getattr(entity, 'title', 'Без названия')
-            print(f"✅ Доступ получен: {title} (ID: {entity.id})")
-        except Exception as e:
-            print(f"⚠️ Не удалось получить напрямую ({e}), пробую через инвайт...")
-            # Только если напрямую не получилось — используем инвайт
+            print(f"✅ Уже в чате: {getattr(entity, 'title', entity.id)}")
+        except:
+            # Если не участник — присоединяемся через инвайт
             try:
-                hash_part = link_clean.split('+')[-1].split('?')[0].split('#')[0].strip()
-                print(f"🔑 Хеш: '{hash_part}'")
                 await client(ImportChatInviteRequest(hash_part))
                 entity = await client.get_entity(link_clean)
-                print(f"✅ Присоединились: {getattr(entity, 'title', 'Без названия')}")
+                print(f"✅ Присоединились: {getattr(entity, 'title', entity.id)}")
             except InviteHashExpiredError:
-                print(f"❌ ССЫЛКА ПРОСРОЧЕНА: {link_clean}")
-                print("💡 Запросите НОВУЮ ссылку у администратора чата!")
+                print(f"❌ ССЫЛКА ПРОСРОЧЕНА!")
+                print(f"💡 Запросите НОВУЮ ссылку у администратора чата")
                 continue
-            except Exception as ex:
-                print(f"❌ Не удалось присоединиться: {ex}")
+            except InviteHashInvalidError:
+                print(f"❌ Неверный хеш ссылки")
+                continue
+            except Exception as e:
+                print(f"❌ Ошибка присоединения: {e}")
                 continue
 
         # Парсим сообщения
@@ -114,17 +113,16 @@ async def main():
                 if matches_departure_from_moscow(text):
                     cid = f"{entity.id}_{msg.id}"
                     if cid in sent_ids:
-                        print(f"⏭️ Уже отправлено: {cid}")
                         continue
-                    print(f"✅ Отправляю из '{getattr(entity, 'title', entity.id)}': {text[:80]}...")
+                    print(f"✅ [{getattr(entity, 'title', entity.id)[:15])}] {text[:60]}")
                     await client.send_message(GROUP_USERNAME, text)
                     new_ids.add(cid)
         except Exception as e:
-            print(f"❌ Ошибка чтения сообщений: {e}")
+            print(f"❌ Ошибка чтения: {e}")
 
     sent_ids.update(new_ids)
     save_sent_ids(sent_ids)
-    print(f"\n✅ Итого новых сообщений: {len(new_ids)}")
+    print(f"\n✨ Новых сообщений: {len(new_ids)}")
     await client.disconnect()
 
 if __name__ == "__main__":
