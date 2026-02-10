@@ -27,17 +27,22 @@ jobs:
       - name: Restore sent messages history
         run: |
           if [ -f sent_messages.json ]; then
-            echo "✅ История загружена."
+            echo "✅ История загружена (размер: $(wc -l < sent_messages.json) строк)"
           else
             echo "[]" > sent_messages.json
+            echo "🆕 Создан новый файл истории"
           fi
 
-      - name: Run checker
+      - name: Run checker (DEBUG MODE)
         env:
           PHONE: ${{ secrets.PHONE }}
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
-        run: python check_moscow.py
+        run: |
+          echo "📱 PHONE: ${PHONE:0:3}***"
+          echo "🆔 API_ID: ${API_ID}"
+          echo "🔐 API_HASH: ${API_HASH:0:5}***"
+          python check_moscow.py
 
       - name: Save sent messages history
         uses: stefanzweifel/git-auto-commit-action@v5
