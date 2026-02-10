@@ -5,7 +5,7 @@ from telethon import TelegramClient
 from telethon.tl.functions.messages import ImportChatInviteRequest
 from telethon.errors import (
     InviteHashInvalidError, UserAlreadyParticipantError, FloodWaitError,
-    ChatAdminRequiredError, UserNotParticipantError, BadRequestError
+    ChatAdminRequiredError, UserNotParticipantError, BadRequestError, InviteHashExpiredError
 )
 from datetime import datetime, timedelta, timezone
 
@@ -44,42 +44,58 @@ def save_sent_ids(ids):
         json.dump(list(ids), f)
 
 def get_invite_hash(link):
-    if link.startswith("https://t.me/+"):
-        return link.split("/")[-1]
-    elif link.startswith("https://t.me/joinchat/"):
-        return link.split("/")[-1]
+    link = link.strip()
+    if "t.me/+" in link:
+        return link.split("t.me/+")[1].split("?")[0].split("#")[0].strip()
+    elif "t.me/joinchat/" in link:
+        return link.split("t.me/joinchat/")[1].split("?")[0].split("#")[0].strip()
     else:
-        raise ValueError("Invalid invite link format")
+        raise ValueError(f"Некорректный формат ссылки: {link}")
 
 async def join_and_get_private_channel(client, invite_link):
+    invite_link = invite_link.strip()
+    print(f"🔍 Обрабатываю приватный чат: {invite_link}")
+    
+    # Шаг 1: Пробуем получить чат напрямую (если уже участник)
+    try:
+        entity = await client.get_entity(invite_link)
+        title = getattr(entity, 'title', getattr(entity, 'first_name', 'Без названия'))
+        print(f"✅ Уже состою в чате: {title} (ID: {entity.id})")
+        return entity
+    except (ValueError, Exception) as e:
+        print(f"ℹ️ Чат не найден напрямую ({e}), пробую присоединиться через инвайт...")
+
+    # Шаг 2: Если не участник — используем инвайт
     try:
         hash_part = get_invite_hash(invite_link)
+        print(f"🔑 Извлечён хеш приглашения: '{hash_part}'")
+        
         updates = await client(ImportChatInviteRequest(hash_part))
-        entity = None
-        if hasattr(updates, 'chats') and updates.chats:
-            entity = updates.chats[0]
-        elif hasattr(updates, 'users') and updates.users:
-            # Если это приватная группа с одним пользователем (редко)
-            pass
-        if not entity:
-            entity = await client.get_entity(invite_link)
-        print(f"✅ Присоединились к приватному чату: {entity.title}")
-        return entity
+        entity = updates.chats[0] if hasattr(updates, 'chats') and updates.chats else None
+        
+        if entity:
+            print(f"✅ Успешно присоединились к чату: {entity.title} (ID: {entity.id})")
+            return entity
+        else:
+            print(f"❌ Не удалось получить сущность чата после присоединения")
+            return None
+            
     except UserAlreadyParticipantError:
-        print("⚠️ Уже состою в этом чате.")
-        entity = await client.get_entity(invite_link)
-        return entity
+        print("⚠️ Уже состою в чате (через исключение).")
+        return await client.get_entity(invite_link)
+    except InviteHashExpiredError:
+        print(f"❌ ССЫЛКА ПРОСРОЧЕНА: {invite_link}")
+        print("💡 Решение: запросите у администратора чата НОВУЮ ссылку-приглашение.")
+        return None
     except InviteHashInvalidError:
-        print(f"❌ Неверная ссылка-приглашение: {invite_link}")
+        print(f"❌ НЕВЕРНЫЙ ХЕШ приглашения: {invite_link}")
+        print("💡 Проверьте корректность ссылки или запросите новую у администратора.")
         return None
     except FloodWaitError as e:
-        print(f"⏰ Ожидание {e.seconds} секунд из-за ограничения API.")
+        print(f"⏰ FloodWait: нужно подождать {e.seconds} секунд")
         return "FLOOD_WAIT"
-    except BadRequestError as e:
-        print(f"❌ Ошибка запроса при присоединении к чату ({invite_link}): {e}")
-        return None
     except Exception as e:
-        print(f"❌ Ошибка при присоединении к приватному чату ({invite_link}): {e}")
+        print(f"❌ Неизвестная ошибка при работе с чатом {invite_link}: {type(e).__name__}: {e}")
         return None
 
 async def main():
@@ -91,7 +107,7 @@ async def main():
 
     # Обработка обычных каналов
     for channel in CHANNELS:
-        print(f"🔍 Проверяю {channel}...")
+        print(f"\n🔍 Проверяю публичный канал: {channel}")
         try:
             messages = await client.get_messages(channel, limit=20)
             if not messages:
@@ -117,19 +133,25 @@ async def main():
             print(f"❌ Ошибка в {channel}: {e}")
 
     # Обработка приватных групп
+    print("\n" + "="*60)
+    print("РАБОТА С ПРИВАТНЫМИ ЧАТАМИ")
+    print("="*60)
+    
     for invite_link in PRIVATE_INVITE_LINKS:
-        print(f"🔍 Проверяю приватный чат по ссылке: {invite_link}")
+        print(f"\n🔍 Обрабатываю приватный чат: {invite_link.strip()}")
         chat_entity = await join_and_get_private_channel(client, invite_link)
         
         if chat_entity == "FLOOD_WAIT":
+            print("⚠️ Пропускаем из-за FloodWait")
             continue
         if not chat_entity:
+            print(f"❌ Не удалось получить доступ к чату: {invite_link.strip()}")
             continue
 
         try:
             messages = await client.get_messages(chat_entity, limit=20)
             if not messages:
-                print(f"⚠️ Нет сообщений в приватном чате {chat_entity.title}.")
+                print(f"⚠️ Нет сообщений в приватном чате '{getattr(chat_entity, 'title', chat_entity.id)}'.")
                 continue
 
             for msg in messages:
@@ -142,20 +164,21 @@ async def main():
                     if composite_id in sent_ids:
                         print(f"⏭️ Уже отправляли (ID: {composite_id})")
                         continue
-                    print(f"📩 Отправляю из приватного чата в группу: {original_text[:100]}...")
+                    print(f"📩 Отправляю из приватного чата '{getattr(chat_entity, 'title', chat_entity.id)}': {original_text[:100]}...")
                     await client.send_message(GROUP_USERNAME, original_text)
                     new_ids.add(composite_id)
         except FloodWaitError as e:
             print(f"⏰ Ожидание {e.seconds} секунд из-за ограничения API.")
         except UserNotParticipantError:
-            print(f"❌ Бот не является участником приватного чата {chat_entity.title}.")
+            print(f"❌ Не являюсь участником чата '{getattr(chat_entity, 'title', chat_entity.id)}'.")
         except ChatAdminRequiredError:
-            print(f"❌ Недостаточно прав для чтения сообщений в приватном чате {chat_entity.title}.")
+            print(f"❌ Недостаточно прав для чтения сообщений в чате '{getattr(chat_entity, 'title', chat_entity.id)}'.")
         except Exception as e:
-            print(f"❌ Ошибка при работе с приватным чатом {chat_entity.title}: {e}")
+            print(f"❌ Ошибка при работе с приватным чатом '{getattr(chat_entity, 'title', chat_entity.id)}': {e}")
 
     sent_ids.update(new_ids)
     save_sent_ids(sent_ids)
+    print(f"\n✅ Обработано новых сообщений: {len(new_ids)}")
     await client.disconnect()
 
 if __name__ == "__main__":
