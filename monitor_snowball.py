@@ -73,7 +73,11 @@ def save_state(portfolio_id, keys):
 async def main():
     print(f"🕒 Запуск: {datetime.now(timezone.utc).isoformat()}")
     client = TelegramClient('session', API_ID, API_HASH)
-    await client.start(phone=PHONE)
+    await client.connect()
+    
+    if not await client.is_user_authorized():
+        print("❌ Сессия не найдена. Загрузите session.session файл в репозиторий.")
+        return
 
     try:
         for name, pid in PORTFOLIOS.items():

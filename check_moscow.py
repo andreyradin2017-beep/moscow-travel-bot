@@ -12,7 +12,6 @@ from datetime import datetime, timedelta, timezone
 PHONE = os.getenv("PHONE")  # Ваш номер телефона (например, "79123456789")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-MY_PHONE_CODE = os.getenv("MY_PHONE_CODE")  # Код из SMS (6 цифр)
 
 CHANNELS = ["@nachemodanah", "@trvlclick", "@vandroukiru"]
 
@@ -47,17 +46,12 @@ def save_sent_ids(ids):
         json.dump(list(ids), f)
 
 async def main():
-    # Функция для автоматического ввода кода из секрета
-    def code_callback():
-        if MY_PHONE_CODE:
-            print(f"✅ Использую код из секрета MY_PHONE_CODE: {MY_PHONE_CODE}")
-            return MY_PHONE_CODE
-        else:
-            print("⚠️ Секрет MY_PHONE_CODE не задан. Требуется ручной ввод кода.")
-            return input("Введите код из SMS: ")
-
     client = TelegramClient('session', API_ID, API_HASH)
-    await client.start(phone=PHONE, code_callback=code_callback)
+    await client.connect()
+    
+    if not await client.is_user_authorized():
+        print("❌ Сессия не найдена. Загрузите session.session файл в репозиторий.")
+        return
 
     sent_ids = load_sent_ids()
     new_ids = set()

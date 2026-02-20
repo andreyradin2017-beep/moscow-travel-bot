@@ -28,7 +28,11 @@ def save_last_date(dt):
 
 async def main():
     client = TelegramClient('session', API_ID, API_HASH)
-    await client.start(phone=PHONE)
+    await client.connect()
+    
+    if not await client.is_user_authorized():
+        print("❌ Сессия не найдена. Загрузите session.session файл в репозиторий.")
+        return
 
     last_date = load_last_date()
     today = datetime.now().date()
