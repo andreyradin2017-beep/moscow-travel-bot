@@ -20,20 +20,21 @@ async def get_transactions_with_playwright(portfolio_id):
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
-        await page.goto(url, wait_until="networkidle")
-        
+        # Ждём только DOMContentLoaded, затем явно ждём появления таблицы
+        await page.goto(url, wait_until="domcontentloaded")
+
+        # Ждём появления таблицы со сделками
+        try:
+            await page.wait_for_selector("table:has(th:text('Операция'))", timeout=30000)
+        except Exception:
+            print("⚠️ Таблица сделок не загрузилась вовремя")
+            await browser.close()
+            return []
+
         # Проверяем наличие сообщения "Здесь пока что пусто"
         empty_elements = await page.query_selector_all("text='Здесь пока что пусто'")
         if empty_elements:
             print("📭 Таблица пуста")
-            await browser.close()
-            return []
-
-        # Ждём появления таблицы со сделками
-        try:
-            await page.wait_for_selector("table:has(th:text('Операция'))", timeout=20000)
-        except Exception:
-            print("⚠️ Таблица сделок не загрузилась вовремя")
             await browser.close()
             return []
 
