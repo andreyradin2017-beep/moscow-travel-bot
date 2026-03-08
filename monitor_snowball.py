@@ -18,44 +18,66 @@ PORTFOLIOS = {
 async def get_transactions_with_playwright(portfolio_id):
     url = f"https://snowball-income.com/public/portfolios/{portfolio_id}#transactions"
     async with async_playwright() as p:
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         # Ждём только DOMContentLoaded, затем явно ждём появления таблицы
-        await page.goto(url, wait_until="domcontentloaded")
+        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
-        # Ждём появления таблицы со сделками
+        # Даём время на загрузку динамического контента
+        await page.wait_for_timeout(5000)
+
+        # Сохраняем скриншот для отладки
+        await page.screenshot(path=f"snowball_{portfolio_id}_debug.png")
+        print(f"📸 Скриншот сохранён: snowball_{portfolio_id}_debug.png")
+
+        # Получаем HTML страницы для отладки
+        html = await page.content()
+        print(f"📄 Длина HTML: {len(html)} символов")
+
+        # Проверяем наличие сообщения о пустоте разными способами
+        empty_texts = ["Здесь пока что пусто", "Нет данных", "Пусто", "No transactions"]
+        for empty_text in empty_texts:
+            empty_elements = await page.query_selector_all(f"text={empty_text}")
+            if empty_elements:
+                print(f"⚠️ Найдено сообщение: '{empty_text}' (элементов: {len(empty_elements)})")
+
+        # Пробуем разные селекторы для таблицы
+        table_selector = "table"
         try:
-            await page.wait_for_selector("table:has(th:text('Операция'))", timeout=30000)
-        except Exception:
-            print("⚠️ Таблица сделок не загрузилась вовремя")
+            await page.wait_for_selector(table_selector, timeout=30000)
+            print("✅ Таблица найдена")
+        except Exception as e:
+            print(f"⚠️ Таблица не найдена: {e}")
             await browser.close()
             return []
 
-        # Проверяем наличие сообщения "Здесь пока что пусто"
-        empty_elements = await page.query_selector_all("text='Здесь пока что пусто'")
-        if empty_elements:
-            print("📭 Таблица пуста")
-            await browser.close()
-            return []
+        # Получаем все строки таблицы
+        rows = await page.query_selector_all(f"{table_selector} tbody tr")
+        if not rows:
+            rows = await page.query_selector_all(f"{table_selector} tr")
 
-        rows = await page.query_selector_all("table:has(th:text('Операция')) tbody tr")
+        print(f"📊 Найдено строк в таблице: {len(rows)}")
+
         transactions = []
-        
-        for row in rows:
+
+        for i, row in enumerate(rows):
             cells = await row.query_selector_all("td")
             texts = []
             for cell in cells:
                 text = await cell.inner_text()
                 texts.append(text.strip())
-            
-            if len(texts) >= 8:
+
+            print(f"   Строка {i}: {texts[:4]}...")  # Первые 4 ячейки для отладки
+
+            if len(texts) >= 4 and texts[0] and texts[1]:
                 operation = texts[0]
                 ticker = texts[1]
-                date = texts[2]
+                date = texts[2] if len(texts) > 2 else ""
                 key = f"{date}|{ticker}|{operation}"
                 raw = " | ".join(texts[:6])
                 transactions.append({"key": key, "raw": raw})
-        
+
+        print(f"✅ Распарсено транзакций: {len(transactions)}")
         await browser.close()
         return transactions
 
