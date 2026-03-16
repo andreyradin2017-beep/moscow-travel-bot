@@ -8,6 +8,7 @@ from telethon.errors import (
     FloodWaitError, ChatAdminRequiredError
 )
 from datetime import datetime, timedelta, timezone
+import httpx
 
 PHONE = os.getenv("PHONE")  # Ваш номер телефона (например, "79123456789")
 API_ID = int(os.getenv("API_ID"))
@@ -23,7 +24,31 @@ PRIVATE_INVITE_LINKS = [
 
 GROUP_USERNAME = "to_road_mo"
 HISTORY_FILE = "sent_messages.json"
-MAX_POST_AGE_DAYS = 1
+PACHCA_ACCESS_TOKEN = os.getenv("PACHCA_ACCESS_TOKEN")
+PACHCA_CHAT_ID = os.getenv("PACHCA_CHAT_ID", "35238217")
+
+async def send_pachca_notification(text):
+    if not PACHCA_ACCESS_TOKEN:
+        return
+    url = "https://api.pachca.com/api/shared/v1/messages"
+    headers = {
+        "Authorization": f"Bearer {PACHCA_ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "message": {
+            "entity_type": "discussion",
+            "entity_id": int(PACHCA_CHAT_ID),
+            "content": text
+        }
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            if response.status_code not in [200, 201]:
+                print(f"❌ Ошибка API Пачки: {response.status_code} {response.text}")
+    except Exception as e:
+        print(f"❌ Исключение при отправке в Пачку: {e}")
 
 def matches_departure_from_moscow(text):
     if not text:
@@ -56,6 +81,8 @@ async def main():
     sent_ids = load_sent_ids()
     new_ids = set()
 
+    MAX_POST_AGE_DAYS = 1
+
     # Публичные каналы
     for channel in CHANNELS:
         print(f"\n📡 {channel}")
@@ -71,6 +98,7 @@ async def main():
                         continue
                     print(f"✅ {text[:70]}")
                     await client.send_message(GROUP_USERNAME, text)
+                    await send_pachca_notification(text)
                     new_ids.add(cid)
         except Exception as e:
             print(f"❌ {channel}: {e}")
@@ -129,6 +157,7 @@ async def main():
                         continue
                     print(f"✅ [{getattr(entity, 'title', str(entity.id))[:15]}] {text[:60]}")
                     await client.send_message(GROUP_USERNAME, text)
+                    await send_pachca_notification(text)
                     new_ids.add(cid)
         except Exception as e:
             print(f"❌ Ошибка чтения: {e}")

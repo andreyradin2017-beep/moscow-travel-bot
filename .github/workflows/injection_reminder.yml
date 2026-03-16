@@ -22,7 +22,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install telethon
+        run: pip install telethon httpx
 
       - name: Restore last injection date
         run: |
@@ -37,6 +37,8 @@ jobs:
           PHONE: ${{ secrets.PHONE }}
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
+          PACHCA_ACCESS_TOKEN: ${{ secrets.PACHCA_ACCESS_TOKEN }}
+          PACHCA_CHAT_ID: ${{ secrets.PACHCA_CHAT_ID }}
         run: python injection_reminder.py
 
       - name: Save last injection date

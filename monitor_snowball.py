@@ -4,10 +4,13 @@ import asyncio
 from telethon import TelegramClient
 from playwright.async_api import async_playwright
 from datetime import datetime, timezone
+import httpx
 
 PHONE = os.getenv("PHONE")
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
+PACHCA_ACCESS_TOKEN = os.getenv("PACHCA_ACCESS_TOKEN")
+PACHCA_CHAT_ID = os.getenv("PACHCA_CHAT_ID", "35238217")
 CHAT_ID = "me"
 
 PORTFOLIOS = {
@@ -66,6 +69,29 @@ def save_state(portfolio_id, keys):
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(list(keys)[-100:], f)  # сохраняем последние 100 записей
 
+async def send_pachca_notification(text):
+    if not PACHCA_ACCESS_TOKEN:
+        return
+    url = "https://api.pachca.com/api/shared/v1/messages"
+    headers = {
+        "Authorization": f"Bearer {PACHCA_ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "message": {
+            "entity_type": "discussion",
+            "entity_id": int(PACHCA_CHAT_ID),
+            "content": text
+        }
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            if response.status_code not in [200, 201]:
+                print(f"❌ Ошибка API Пачки: {response.status_code} {response.text}")
+    except Exception as e:
+        print(f"❌ Исключение при отправке в Пачку: {e}")
+
 async def main():
     print(f"🕒 Запуск: {datetime.now(timezone.utc).isoformat()}")
     client = TelegramClient('session', API_ID, API_HASH)
@@ -89,6 +115,7 @@ async def main():
                 for t in new_transactions[:3]:
                     message += f"• {t['raw']}\n"
                 await client.send_message(CHAT_ID, message, parse_mode='md')
+                await send_pachca_notification(message.replace("**", ""))
                 print(f"✅ Новых сделок в '{name}': {len(new_transactions)}")
             else:
                 print(f"📭 Новых сделок в '{name}' нет")
@@ -96,8 +123,10 @@ async def main():
             save_state(pid, current_keys)
 
     except Exception as e:
+        error_msg = f"⚠️ Ошибка мониторинга Snowball:\n{str(e)}"
         print(f"❌ Ошибка: {e}")
-        await client.send_message(CHAT_ID, f"⚠️ Ошибка мониторинга Snowball:\n{str(e)}")
+        await client.send_message(CHAT_ID, error_msg)
+        await send_pachca_notification(error_msg)
     
     await client.disconnect()
 
