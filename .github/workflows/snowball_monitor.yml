@@ -2,7 +2,7 @@ name: Snowball Transactions Monitor
 
 on:
   schedule:
-    - cron: '*/10 5-19 * * 1-5'  # Пн–Пт, 8:00–22:30 МСК (каждые 10 минут)
+    - cron: '*/30 5-19 * * 1-5'  # Пн–Пт, 8:00–22:00 МСК (раз в 30 минут)
   workflow_dispatch:
 
 permissions:
@@ -11,6 +11,7 @@ permissions:
 jobs:
   monitor:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,6 +21,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
 
       - name: Install system dependencies
         run: |
@@ -40,14 +49,20 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install telethon playwright httpx
+          pip install -r requirements.txt
           playwright install chromium
 
       - name: Restore transaction history
         run: |
-          for f in snowball_*.json; do
-            [ -f "$f" ] && echo "✅ $f загружен." || echo "[]" > "$f"
-          done
+          shopt -s nullglob
+          files=(snowball_*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "[]" > snowball_transactions.json
+          else
+            for f in "${files[@]}"; do
+              echo "✅ $f загружен."
+            done
+          fi
 
       - name: Check for new transactions
         env:

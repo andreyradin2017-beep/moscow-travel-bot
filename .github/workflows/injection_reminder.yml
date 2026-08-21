@@ -11,6 +11,7 @@ permissions:
 jobs:
   remind:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,9 +21,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements_reminder.txt
 
       - name: Install dependencies
-        run: pip install telethon httpx
+        run: pip install -r requirements_reminder.txt
 
       - name: Restore last injection date
         run: |

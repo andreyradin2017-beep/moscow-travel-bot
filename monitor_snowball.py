@@ -23,6 +23,7 @@ async def get_transactions_with_playwright(portfolio_id):
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
+        page.set_default_timeout(60000)
         await page.goto(url, wait_until="domcontentloaded", timeout=60000)
         await page.wait_for_timeout(5000)
 
@@ -85,7 +86,7 @@ async def send_pachca_notification(text):
         }
     }
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(url, headers=headers, json=payload)
             if response.status_code not in [200, 201]:
                 print(f"❌ Ошибка API Пачки: {response.status_code} {response.text}")

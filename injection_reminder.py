@@ -45,7 +45,7 @@ async def send_pachca_notification(text):
         }
     }
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(url, headers=headers, json=payload)
             if response.status_code not in [200, 201]:
                 print(f"❌ Ошибка API Пачки: {response.status_code} {response.text}")
