@@ -17,6 +17,11 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Restore Telegram session
+        env:
+          TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
+        run: echo "$TELEGRAM_SESSION" | base64 -d > session.session
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
